@@ -1,1 +1,0 @@
-# CVRP_TIPE
