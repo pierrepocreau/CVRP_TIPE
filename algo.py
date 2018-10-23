@@ -73,9 +73,9 @@ class Solver:
         c1.p.n, c2.p.n = c2, c1
         c1.p, c2.p = c2.p, c1.p
 
+        c1.route, c2.route = c2.route, c1.route
         c1.route.actualiser()
         c2.route.actualiser()
-
 
         coutf = self.cout_solution()
         if verbose: print("swap tail", (c1.id + 1, c2.id + 1), "gain th: ", gain, "vrai gain: ", coutp - coutf)
@@ -90,8 +90,12 @@ class Solver:
         c1.p.n, c1.n.p = c1, c1
         c2.p.n, c2.n.p = c2, c2
 
+        c1.route, c2.route = c2.route, c1.route
+
         c1.route.actualiser()
         c2.route.actualiser()
+
+
         if verbose: print("swap:", (c1.id+1, c2.id+1), "gain:", gain)
         self.del_routes_vide()
     
@@ -124,6 +128,7 @@ class Solver:
 
         c1.route.actualiser()
         c2.route.actualiser()
+
         if verbose: print("invert:", (c1.id+1, c2.id+1), "gain:", gain)
         self.del_routes_vide()
 
@@ -164,7 +169,7 @@ class Solver:
     
     def swap_tail_conditions(self, c1, c2, verbose = False):
         #verifie si on peut echanger la queue de deux routes
-        if c1.route != c2.route:
+        if c1.route != c2.route and (c1.p != c1.route.depot or c2.p != c2.route.depot):
             gain = c1.p.dn() + c2.p.dn() - c2.p.d(c1) - c1.p.d(c2)
             if gain > 0 and self.chargement_condition_tail(c1, c2): #pas le même calcul de chargement puiqu'il faut prendre un compte la queue
                 self.swap_tail(c1, c2, gain, verbose)

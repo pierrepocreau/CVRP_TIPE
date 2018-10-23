@@ -10,7 +10,7 @@ class Route:
         self.actualiser()
 
     def actualiser_chargement(self, c):
-        # ATTENTION pas plus de 1000 appelss
+        # ATTENTION pas plus de 1000 appels
         if c.n != self.depot:
             return c.q + self.actualiser_chargement(c.n)         
         else:

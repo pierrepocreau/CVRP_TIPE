@@ -2,6 +2,7 @@ import xml.etree.ElementTree as ET
 import os
 from data_processing import *
 from resolution import resolution
+from itertools import permutations
 
 ###Resout une instance d'augerat A (ou toutes)###
 
@@ -43,18 +44,29 @@ def get_data(file):
     
     return liste_clients, opti
 
-def full_benchmark(afficher = False, localsearch = False, verbose = False):
+def determination_ordre_operations():
+    op =  ["a", "b", "c", "d"]
+    min_moyenne = 10000
+    ordre_op = ["a", "b", "c", "d"]
+    for i in permutations(op):
+        _, moyenne = full_benchmark(i, afficher = False, localsearch = True, verbose = False)
+        #_, moyenne = solo_instance(op, "A-n48-k07.xml", afficher = False, localsearch = True, verbose = False)
+        print(moyenne, i)
+        if moyenne < min_moyenne:
+            min_moyenne = moyenne
+            ordre_op = i
+    return ordre_op, min_moyenne
+
+def full_benchmark(ordre_op, afficher = False, localsearch = False, verbose = False):
     #test tout les instances augerat a
-    doc = os.getcwd()
-    dossier_donnees = os.path.join(doc, "augerat-1995-set-a")
-    os.chdir(dossier_donnees)
+
     solutions = {}
     problemes = []
 
     for f in os.listdir(dossier_donnees):
 
         data, opti = get_data(f)
-        cout, route = resolution(data, afficher, localsearch, verbose)
+        cout, route = resolution(ordre_op, data, afficher, localsearch, verbose)
         diff_percent = (abs(cout - opti) / opti )* 100
         solutions[f] = (opti, cout, diff_percent)
 
@@ -62,20 +74,23 @@ def full_benchmark(afficher = False, localsearch = False, verbose = False):
 
     return solutions, moyenne_perc
 
-def solo_instance(instance, afficher = False, localsearch = False, verbose = False):
+def solo_instance(ordre_op, instance, afficher = False, localsearch = False, verbose = False):
     #test une seule instance
-    doc = os.getcwd()
-    dossier_donnees = os.path.join(doc, "augerat-1995-set-a")
-    file = os.path.join(dossier_donnees, instance)
-
+    file = os.path.join(os.getcwd(), instance)
     data, opti = get_data(file)
-    cout, route = resolution(data, afficher, localsearch, verbose)
+    cout, route = resolution(ordre_op, data, afficher, localsearch, verbose)
     diff = (abs(cout - opti)/ opti) * 100
-    print("opti: ", opti, " cout: ", cout, " diff: ", diff)
+    return route, diff
 
 if __name__ == "__main__":
-    #solutions = solo_instance("A-n60-k09.xml", afficher = True, localsearch = True, verbose = False)
-    solutions, moyenne = full_benchmark(afficher = False, localsearch = True, verbose = False)
+    doc = os.getcwd()
+    dossier_donnees = os.path.join(doc, "augerat-1995-set-a")
+    os.chdir(dossier_donnees)
+    ordre_op = ["b", "c", "d", "a"] #semble être le mieux
+    #solutions = solo_instance(ordre_op, "A-n60-k09.xml", afficher = True, localsearch = True, verbose = False)
+    solutions, moyenne = full_benchmark(ordre_op, afficher = False, localsearch = True, verbose = False)
     for key, values in solutions.items():
         print("opti: ", values[0], "solution: ", values[1], "diff: ", values[-1])
     print(moyenne)
+    #op, min_m = determination_ordre_operations()
+    #print(op, min_m)
