@@ -63,9 +63,23 @@ class Solver:
     
     ###LOCAL SEARCH###
 
-    def reverse_seg_inter(self, c1, c2):
+    def swap_tail(self, c1, c2, gain, verbose = False):
         #pas implemente encore
-        c1.n, c1.p = c1.p, c1.n
+        coutp = self.cout_solution()
+
+        c1.route.depot.p.n, c2.route.depot.p.n = c2.route.depot, c1.route.depot
+        c1.route.depot.p, c2.route.depot.p = c2.route.depot.p, c1.route.depot.p
+
+        c1.p.n, c2.p.n = c2, c1
+        c1.p, c2.p = c2.p, c1.p
+
+        c1.route.actualiser()
+        c2.route.actualiser()
+
+
+        coutf = self.cout_solution()
+        if verbose: print("swap tail", (c1.id + 1, c2.id + 1), "gain th: ", gain, "vrai gain: ", coutp - coutf)
+        
 
     def swap(self, c1, c2, gain, verbose = False):
         #echange c1 et c2
@@ -139,6 +153,21 @@ class Solver:
             gain = c1.p.dn() + c1.dn() + c2.dn() + c2.p.dn() - c1.d(c2.n) - c2.p.d(c1) - c2.d(c1.n) - c1.p.d(c2)
             if gain > 0 and self.chargement_route_condition(c1, c2):
                 self.swap(c1, c2, gain, verbose)
+
+    def chargement_condition_tail(self, c1, c2):
+        #calcule le chargement de la queue
+        c2_tail_chargement = c2.route.actualiser_chargement(c2)
+        c1_tail_chargement = c1.route.actualiser_chargement(c1)
+        diff_route_c1 = self.chargement_disp(c1.route) - c2_tail_chargement + c1_tail_chargement
+        diff_route_c2 = self.chargement_disp(c2.route) - c1_tail_chargement+ c2_tail_chargement
+        return diff_route_c1 > 0 and diff_route_c2 > 0
+    
+    def swap_tail_conditions(self, c1, c2, verbose = False):
+        #verifie si on peut echanger la queue de deux routes
+        if c1.route != c2.route:
+            gain = c1.p.dn() + c2.p.dn() - c2.p.d(c1) - c1.p.d(c2)
+            if gain > 0 and self.chargement_condition_tail(c1, c2): #pas le même calcul de chargement puiqu'il faut prendre un compte la queue
+                self.swap_tail(c1, c2, gain, verbose)
 
     ###AFFICHAGE###
         

@@ -36,6 +36,15 @@ def full_invert(solver, data, verbose = False):
 
         if verbose: print("cout après invert", solver.cout_solution())
 
+def full_swap_tail(solver, data, verbose = False):
+        if verbose: print("\n swap_tail")
+
+        for c1 in solver.data[1:]:
+            for c2 in solver.data[c1.id:]:
+                if c1 != c2:
+                    solver.swap_tail_conditions(c1, c2, verbose)
+
+        if verbose: print("cout après swap_tail", solver.cout_solution())
 
 def resolution(data, affichage = False, localsearch = False, verbose = False):
     solver = Solver(data, 100)
@@ -60,9 +69,10 @@ def resolution(data, affichage = False, localsearch = False, verbose = False):
             solver.del_routes_vide()
 
             #il faudrait trouver la meuilleur combinaison
-            full_relocate(solver, data, verbose)
-            full_swap(solver, data, verbose)
-            full_invert(solver,data, verbose)
+            #full_relocate(solver, data, verbose)
+            #full_swap(solver, data, verbose)
+            #full_invert(solver,data, verbose)
+            full_swap_tail(solver, data, verbose = True)
 
         if verbose: print("nombres de routes:", len(solver.routes))
         solver.show(2)

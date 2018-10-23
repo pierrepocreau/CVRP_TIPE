@@ -27,7 +27,6 @@ class Route:
     def actualiser_clients(self, c):
         c.route = self
         if c.n != self.depot:
-            c.n.route = self
             self.actualiser_clients(c.n)
         
     
