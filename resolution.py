@@ -67,8 +67,8 @@ def resolution(ordre_op, data, affichage = False, localsearch = False, verbose =
         while abs(solver.cout_solution() - cout) > 5:
             cout = solver.cout_solution()
             solver.del_routes_vide()
-
-            #il faudrait trouver la meuilleur combinaison
+    
+            #il faudrait trouver une meuilleur manière d'executer la recherche
             for o in ordre_op:
                 if o == "a": full_relocate(solver, data, verbose)
                 elif o == "b": full_swap(solver, data, verbose)

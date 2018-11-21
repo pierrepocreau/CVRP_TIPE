@@ -57,7 +57,7 @@ class Solver:
         for c1 in self.data[1:]:
             for i in range(c1.id + 1, self.nb_clients):
                 c2 = self.data[i]
-                temps_eco = c1.p.dn() + c2.p.dn() - c1.d(c2)
+                temps_eco = c1.dn() + c2.p.dn() - c1.d(c2) # JE SUIS SÛR QUE C'EST çA ???
                 self.temps_economise.append(([c1, c2], temps_eco))
         self.temps_economise = sorted(self.temps_economise, key = lambda x: x[1], reverse = True)
     
@@ -74,6 +74,7 @@ class Solver:
         c1.p, c2.p = c2.p, c1.p
 
         c1.route, c2.route = c2.route, c1.route
+
         c1.route.actualiser()
         c2.route.actualiser()
 
@@ -104,18 +105,19 @@ class Solver:
 
         c1.p.n = c1.n
         c1.n.p = c1.p
-        c1.n.route.actualiser()
 
         c2.n.p = c1
         c1.n = c2.n
         c1.p = c2
         c2.n = c1
-        c2.route.actualiser()
+
+        c1.n.route.actualiser()
+
         if verbose: print("relocate ",(c1.id + 1, c2.id + 1), "gain:", gain)
         self.del_routes_vide()
 
     def invert(self, c1, c2, gain, verbose = False):
-        #inverse c1 et c2 
+        #inverse c1 et c2 (sur la même route)
         if c1.n == c2:
             c1.n, c2.p = c2.n, c1.p
             c1.p, c2.n = c2, c1
@@ -132,16 +134,20 @@ class Solver:
         if verbose: print("invert:", (c1.id+1, c2.id+1), "gain:", gain)
         self.del_routes_vide()
 
-    def chargement_route_condition(self, c1, c2):
-        diff_route_c1 = self.chargement_disp(c1.route) - c2.q + c1.q
-        diff_route_c2 = self.chargement_disp(c2.route) - c1.q + c2.q
-        return diff_route_c1 > 0 and diff_route_c2 > 0
+
+
+    def chargement_route_condition_relocate(self, c1, c2):
+        diff_route_c2 = self.chargement_disp(c2.route) - c1.q
+        return diff_route_c2 > 0
 
     def relocate_conditions(self, c1, c2, verbose = False):
         if c1.n != c2 and c2.n != c1:
             gain = c1.p.dn() + c1.dn() + c2.dn() - c1.d(c2.n) - c2.d(c1) - c1.p.d(c1.n)
-            if gain > 0 and self.chargement_route_condition(c1, c2):
+            if gain > 0 and self.chargement_route_condition_relocate(c1, c2): # on rajoute juste c1.q sur la route de c2
                 self.relocate(c1, c2, gain, verbose)
+
+                
+
     
     def invert_conditions(self, c1, c2, verbose = False):
         gain = -1
@@ -149,8 +155,16 @@ class Solver:
             gain = c1.p.dn() + c2.dn() + c1.d(c2) - c2.d(c1) - c1.p.d(c2) - c1.d(c2.n)
         elif c2.n == c1:
             gain = c2.p.dn() + c1.dn() + c2.d(c1) - c1.d(c2) - c2.p.d(c1) - c2.d(c1.n)
-        if gain > 0 and self.chargement_route_condition(c1, c2):
+        if gain > 0:
             self.invert(c1, c2, gain, verbose)
+
+
+
+    
+    def chargement_route_condition(self, c1, c2):
+        diff_route_c1 = self.chargement_disp(c1.route) - c2.q + c1.q
+        diff_route_c2 = self.chargement_disp(c2.route) - c1.q + c2.q
+        return diff_route_c1 > 0 and diff_route_c2 > 0
 
     def swap_conditions(self, c1, c2, verbose = False):
         # Verifie si on peut swapper c1 et c2
@@ -159,12 +173,14 @@ class Solver:
             if gain > 0 and self.chargement_route_condition(c1, c2):
                 self.swap(c1, c2, gain, verbose)
 
+
+
     def chargement_condition_tail(self, c1, c2):
         #calcule le chargement de la queue
         c2_tail_chargement = c2.route.actualiser_chargement(c2)
         c1_tail_chargement = c1.route.actualiser_chargement(c1)
         diff_route_c1 = self.chargement_disp(c1.route) - c2_tail_chargement + c1_tail_chargement
-        diff_route_c2 = self.chargement_disp(c2.route) - c1_tail_chargement+ c2_tail_chargement
+        diff_route_c2 = self.chargement_disp(c2.route) - c1_tail_chargement + c2_tail_chargement
         return diff_route_c1 > 0 and diff_route_c2 > 0
     
     def swap_tail_conditions(self, c1, c2, verbose = False):

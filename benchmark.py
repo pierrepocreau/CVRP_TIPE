@@ -66,10 +66,11 @@ def full_benchmark(ordre_op, afficher = False, localsearch = False, verbose = Fa
     for f in os.listdir(dossier_donnees):
 
         data, opti = get_data(f)
-        cout, route = resolution(ordre_op, data, afficher, localsearch, verbose)
+        cout, routes = resolution(ordre_op, data, afficher, localsearch, verbose)
         diff_percent = (abs(cout - opti) / opti )* 100
         solutions[f] = (opti, cout, diff_percent)
-
+        print(f, len(routes), opti, cout, diff_percent)
+        #    resolution(ordre_op, data, True, True, True)
     moyenne_perc = sum([value[-1] for key, value in solutions.items()]) / len(solutions)
 
     return solutions, moyenne_perc
@@ -86,11 +87,12 @@ if __name__ == "__main__":
     doc = os.getcwd()
     dossier_donnees = os.path.join(doc, "augerat-1995-set-a")
     os.chdir(dossier_donnees)
-    ordre_op = ["b", "c", "d", "a"] #semble être le mieux
-    #solutions = solo_instance(ordre_op, "A-n60-k09.xml", afficher = True, localsearch = True, verbose = False)
-    solutions, moyenne = full_benchmark(ordre_op, afficher = False, localsearch = True, verbose = False)
+    ordre_op = ["c", "d", "b", "a"] #semble être le mieux
+    solutions = solo_instance(ordre_op, "A-n60-k09.xml", afficher = True, localsearch = True, verbose = False)
+    solutions, moyenne = full_benchmark(ordre_op, afficher = False, localsearch = False, verbose = False)
     for key, values in solutions.items():
-        print("opti: ", values[0], "solution: ", values[1], "diff: ", values[-1])
+        pass
+        #print("opti: ", values[0], "solution: ", values[1], "diff: ", values[-1])
     print(moyenne)
     #op, min_m = determination_ordre_operations()
     #print(op, min_m)
