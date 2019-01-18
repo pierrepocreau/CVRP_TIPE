@@ -46,17 +46,13 @@ class Solver:
                    
     def contrainte_fusion(self, c1, c2):
         # Pour lier deux clients il faut qu'ils soient en bout de tournée
-        if c1.route != c2.route:
-            if c1.n == c1.route.depot and c2.p == c2.route.depot:
-                self.merge_routes(c1, c2)
-            elif c1.p == c1.route.depot and c2.n == c2.route.depot:
-                self.merge_routes(c2, c1)
-    
+        if c1.route != c2.route and c1.n == c1.route.depot and c2.p == c2.route.depot:
+            self.merge_routes(c1, c2)
+
     def calcule_temps_eco(self):
         # Calcule le temps economisé en liant 2 clients
         for c1 in self.data[1:]:
-            for i in range(c1.id + 1, self.nb_clients):
-                c2 = self.data[i]
+            for c2 in self.data[1:]:
                 temps_eco = c1.dn() + c2.p.dn() - c1.d(c2) # JE SUIS SÛR QUE C'EST çA ???
                 self.temps_economise.append(([c1, c2], temps_eco))
         self.temps_economise = sorted(self.temps_economise, key = lambda x: x[1], reverse = True)
@@ -79,7 +75,7 @@ class Solver:
         c2.route.actualiser()
 
         coutf = self.cout_solution()
-        if verbose: print("swap tail", (c1.id + 1, c2.id + 1), "gain th: ", gain, "vrai gain: ", coutp - coutf)
+        #if verbose: print("swap tail", (c1.id + 1, c2.id + 1), "gain th: ", gain, "vrai gain: ", coutp - coutf)
         
 
     def swap(self, c1, c2, gain, verbose = False):
@@ -97,7 +93,7 @@ class Solver:
         c2.route.actualiser()
 
 
-        if verbose: print("swap:", (c1.id+1, c2.id+1), "gain:", gain)
+        #if verbose: print("swap:", (c1.id+1, c2.id+1), "gain:", gain)
         self.del_routes_vide()
     
     def relocate(self, c1, c2, gain, verbose = False):
@@ -113,83 +109,61 @@ class Solver:
 
         c1.n.route.actualiser()
 
-        if verbose: print("relocate ",(c1.id + 1, c2.id + 1), "gain:", gain)
+        #if verbose: print("relocate ",(c1.id + 1, c2.id + 1), "gain:", gain)
         self.del_routes_vide()
 
     def invert(self, c1, c2, gain, verbose = False):
         #inverse c1 et c2 (sur la même route)
-        if c1.n == c2:
-            c1.n, c2.p = c2.n, c1.p
-            c1.p, c2.n = c2, c1
-        else:
-            c2.n, c1.p = c1.n, c2.p
-            c2.p, c1.n = c1, c2
-        
+        c1.n, c2.p = c2.n, c1.p
+        c1.p, c2.n = c2, c1
+
         c1.p.n, c1.n.p = c1, c1
         c2.p.n, c2.n.p = c2, c2
 
         c1.route.actualiser()
-        c2.route.actualiser()
 
-        if verbose: print("invert:", (c1.id+1, c2.id+1), "gain:", gain)
+        #if verbose: print("invert:", (c1.id+1, c2.id+1), "gain:", gain)
         self.del_routes_vide()
 
 
+    def contrainte_chargemnt(self, operation, c1, c2):
+        #On verifie que effectue l'operation sur c1 et c2 ne viole pas la contraine de chargement du véhicule
+        if operation == "reloc":
+            diff_route_c2 = self.chargement_disp(c2.route) - c1.q
+            return diff_route_c2 > 0
 
-    def chargement_route_condition_relocate(self, c1, c2):
-        diff_route_c2 = self.chargement_disp(c2.route) - c1.q
-        return diff_route_c2 > 0
+        elif operation == "swap":
+            diff_route_c1 = self.chargement_disp(c1.route) - c2.q + c1.q
+            diff_route_c2 = self.chargement_disp(c2.route) - c1.q + c2.q
+            return diff_route_c1 > 0 and diff_route_c2 > 0
 
-    def relocate_conditions(self, c1, c2, verbose = False):
-        if c1.n != c2 and c2.n != c1:
-            gain = c1.p.dn() + c1.dn() + c2.dn() - c1.d(c2.n) - c2.d(c1) - c1.p.d(c1.n)
-            if gain > 0 and self.chargement_route_condition_relocate(c1, c2): # on rajoute juste c1.q sur la route de c2
-                self.relocate(c1, c2, gain, verbose)
-
-                
-
+        elif operation == "tail_swap":
+            c2_tail_chargement = c2.route.actualiser_chargement(c2)
+            c1_tail_chargement = c1.route.actualiser_chargement(c1)
+            diff_route_c1 = self.chargement_disp(c1.route) - c2_tail_chargement + c1_tail_chargement
+            diff_route_c2 = self.chargement_disp(c2.route) - c1_tail_chargement + c2_tail_chargement
+            return diff_route_c1 > 0 and diff_route_c2 > 0
     
-    def invert_conditions(self, c1, c2, verbose = False):
-        gain = -1
-        if c1.n == c2:
-            gain = c1.p.dn() + c2.dn() + c1.d(c2) - c2.d(c1) - c1.p.d(c2) - c1.d(c2.n)
-        elif c2.n == c1:
-            gain = c2.p.dn() + c1.dn() + c2.d(c1) - c1.d(c2) - c2.p.d(c1) - c2.d(c1.n)
-        if gain > 0:
-            self.invert(c1, c2, gain, verbose)
+    def operation_condition(self, operation, c1, c2):
+        #Calcul le gain de l'operation si on peut l'effectuer sans violer les contraintes
+        if operation == "reloc":
+            if self.contrainte_chargemnt("reloc", c1, c2) and c1.n != c2 and c2.n != c1:
+                return c1.p.dn() + c1.dn() + c2.dn() - c1.d(c2.n) - c2.d(c1) - c1.p.d(c1.n) #gain
 
+        elif operation == "swap":
+            if self.contrainte_chargemnt("swap", c1, c2) and c1.n != c2 and c2.n != c1:
+                return c1.p.dn() + c1.dn() + c2.dn() + c2.p.dn() - c1.d(c2.n) - c2.p.d(c1) - c2.d(c1.n) - c1.p.d(c2) #gain
+        
+        elif operation == "tail_swap":
+            if self.contrainte_chargemnt("tail_swap", c1, c2) and c1.route != c2.route and (c1.p != c1.route.depot or c2.p != c2.route.depot):
+                return c1.p.dn() + c2.p.dn() - c2.p.d(c1) - c1.p.d(c2) #gain
+        
+        elif operation == "invert":
+            if c1.n == c2:
+                return c1.p.dn() + c2.dn() + c1.d(c2) - c2.d(c1) - c1.p.d(c2) - c1.d(c2.n)
 
-
-    
-    def chargement_route_condition(self, c1, c2):
-        diff_route_c1 = self.chargement_disp(c1.route) - c2.q + c1.q
-        diff_route_c2 = self.chargement_disp(c2.route) - c1.q + c2.q
-        return diff_route_c1 > 0 and diff_route_c2 > 0
-
-    def swap_conditions(self, c1, c2, verbose = False):
-        # Verifie si on peut swapper c1 et c2
-        if c1.n != c2 and c2.n != c1:
-            gain = c1.p.dn() + c1.dn() + c2.dn() + c2.p.dn() - c1.d(c2.n) - c2.p.d(c1) - c2.d(c1.n) - c1.p.d(c2)
-            if gain > 0 and self.chargement_route_condition(c1, c2):
-                self.swap(c1, c2, gain, verbose)
-
-
-
-    def chargement_condition_tail(self, c1, c2):
-        #calcule le chargement de la queue
-        c2_tail_chargement = c2.route.actualiser_chargement(c2)
-        c1_tail_chargement = c1.route.actualiser_chargement(c1)
-        diff_route_c1 = self.chargement_disp(c1.route) - c2_tail_chargement + c1_tail_chargement
-        diff_route_c2 = self.chargement_disp(c2.route) - c1_tail_chargement + c2_tail_chargement
-        return diff_route_c1 > 0 and diff_route_c2 > 0
-    
-    def swap_tail_conditions(self, c1, c2, verbose = False):
-        #verifie si on peut echanger la queue de deux routes
-        if c1.route != c2.route and (c1.p != c1.route.depot or c2.p != c2.route.depot):
-            gain = c1.p.dn() + c2.p.dn() - c2.p.d(c1) - c1.p.d(c2)
-            if gain > 0 and self.chargement_condition_tail(c1, c2): #pas le même calcul de chargement puiqu'il faut prendre un compte la queue
-                self.swap_tail(c1, c2, gain, verbose)
-
+        return -1
+        
     ###AFFICHAGE###
         
     def show(self, figure_number):
