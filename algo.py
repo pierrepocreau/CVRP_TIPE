@@ -60,7 +60,7 @@ class Solver:
     ###LOCAL SEARCH###
 
     def swap_tail(self, c1, c2, gain, verbose = False):
-        #pas implemente encore
+        #echange les queues de c1 et c2
         coutp = self.cout_solution()
 
         c1.route.depot.p.n, c2.route.depot.p.n = c2.route.depot, c1.route.depot
